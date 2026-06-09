@@ -1,0 +1,76 @@
+version: "3.9"
+
+services:
+  # POSTGRES
+  postgres:
+    image: postgres:16-alpine
+    container_name: postgres_db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+
+  # PGADMIN (with persistence)  
+  pgadmin:
+    image: dpage/pgadmin4
+    container_name: pgadmin
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - postgres
+    networks:
+      - app_network
+
+  # REDIS  
+  redis:
+    image: redis:7-alpine
+    container_name: redis_cache
+    restart: always
+    ports:
+      - "6379:6379"
+    networks:
+      - app_network
+
+  # FASTAPI BACKEND (HOT RELOAD)  
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fastapi_backend
+    restart: always
+    environment:
+      DATABASE_URL: ${DATABASE_URL}
+      REDIS_URL: ${REDIS_URL}
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app 
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - app_network
+
+# VOLUMES
+volumes:
+  postgres_data:
+  pgadmin_data:
+
+# NETWORK
+networks:
+  app_network:
+    driver: bridge
