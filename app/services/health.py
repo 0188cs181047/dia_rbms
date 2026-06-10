@@ -1,4 +1,7 @@
 from app.integrations.caching.cache_manager import get_cache, get_cache_type
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
 
 
 class HealthService:
@@ -19,5 +22,29 @@ class HealthService:
         except Exception as e:
             return {
                 "status": "error",
+                "error": str(e),
+            }
+        
+    @staticmethod
+    async def check_health(db: AsyncSession):
+        try:
+            result = await db.execute(text("SELECT 1"))
+            value = result.scalar()
+
+            if value == 1:
+                return {
+                    "status": "connected",
+                    "service": "postgres",
+                }
+
+            return {
+                "status": "unhealthy",
+                "service": "postgres",
+            }
+
+        except Exception as e:
+            return {
+                "status": "error",
+                "service": "postgres",
                 "error": str(e),
             }
