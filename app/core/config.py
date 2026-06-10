@@ -13,6 +13,8 @@ class Settings(BaseSettings):
 
     # REDIS
     REDIS_URL: str
+    CACHE_TYPE: str = "redis"
+    CACHE_ENABLED: bool = True
 
     # PGADMIN
     PGADMIN_EMAIL: str
