@@ -3,12 +3,8 @@ from uuid import uuid4
 
 from sqlalchemy import Boolean, DateTime
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
-
-
-class Base(DeclarativeBase):
-    pass
-
+from sqlalchemy.orm import Mapped, mapped_column
+from app.db.base import Base
 
 class BaseModel(Base):
     __abstract__ = True
