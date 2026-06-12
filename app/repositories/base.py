@@ -1,6 +1,8 @@
 from typing import Generic, TypeVar, Type, List, Optional, Dict, Any
 from sqlalchemy.orm import Session
-from sqlalchemy import func, or_, and_
+from sqlalchemy import select, and_, or_
+from sqlalchemy.ext.asyncio import AsyncSession
+from uuid import UUID
 
 ModelType = TypeVar("ModelType")
 
@@ -8,11 +10,16 @@ class BaseRepository(Generic[ModelType]):
     def __init__(self, model: Type[ModelType]):
         self.model = model
 
-    def create(self, db: Session, obj_in: dict) -> ModelType:
+    async def create(self, db: AsyncSession, obj_in: dict, user_id:UUID):
         obj = self.model(**obj_in)
+        if user_id:
+            obj.created_by = user_id
+
         db.add(obj)
-        db.commit()
-        db.refresh(obj)
+
+        await db.flush()
+        await db.refresh(obj)
+
         return obj
 
     def bulk_create(self, db: Session, objs: List[dict]) -> List[ModelType]:
@@ -23,11 +30,14 @@ class BaseRepository(Generic[ModelType]):
             db.refresh(obj)
         return objects
 
-    def get(self, db: Session, id: Any) -> Optional[ModelType]:
-        return db.query(self.model).filter(
+    async def get(self, db, id: Any):
+        stmt = select(self.model).where(
             self.model.id == id,
             self.model.is_deleted == False
-        ).first()
+        )
+
+        result = await db.execute(stmt)
+        return result.scalars().first()
 
     def get_by_ids(self, db: Session, ids: List[Any]) -> List[ModelType]:
         return db.query(self.model).filter(
@@ -47,26 +57,42 @@ class BaseRepository(Generic[ModelType]):
             query = query.filter(getattr(self.model, k) == v)
         return db.query(query.exists()).scalar()
 
-    def get_multi(
+    async def get_multi(
         self,
-        db: Session,
-        filters: Optional[Dict] = None,
+        db: AsyncSession,
+        filters: dict | None = None,
+        search: str | None = None,
+        search_fields: list[str] | None = None,
         skip: int = 0,
         limit: int = 10,
-        order_by: Any = None
-    ) -> List[ModelType]:
-
-        query = db.query(self.model).filter(self.model.is_deleted == False)
+        order_by=None
+    ):
+        stmt = select(self.model).where(self.model.is_deleted == False)
 
         if filters:
             for key, value in filters.items():
-                query = query.filter(getattr(self.model, key) == value)
+                if hasattr(self.model, key):
+                    stmt = stmt.where(getattr(self.model, key) == value)
+
+        if search and search_fields:
+            conditions = []
+            for field in search_fields:
+                if hasattr(self.model, field):
+                    col = getattr(self.model, field)
+                    conditions.append(col.ilike(f"%{search}%"))
+
+            if conditions:
+                stmt = stmt.where(or_(*conditions))
 
         if order_by is not None:
-            query = query.order_by(order_by)
+            stmt = stmt.order_by(order_by)
 
-        return query.offset(skip).limit(limit).all()
+        stmt = stmt.offset(skip).limit(limit)
 
+        result = await db.execute(stmt)
+
+        return result.scalars().all()
+    
     def paginate(
         self,
         db: Session,
@@ -91,16 +117,20 @@ class BaseRepository(Generic[ModelType]):
             "items": items
         }
 
-    def update(self, db: Session, id: Any, obj_in: dict) -> Optional[ModelType]:
-        obj = self.get(db, id)
+    async def update(self, db: AsyncSession, id: Any, obj_in: dict, user_id: UUID):
+        obj = await self.get(db, id)
+
         if not obj:
             return None
 
         for key, value in obj_in.items():
             setattr(obj, key, value)
 
-        db.commit()
-        db.refresh(obj)
+        if user_id:
+            obj.updated_by = user_id
+
+        await db.commit()
+        await db.refresh(obj)
         return obj
 
     def bulk_update(self, db: Session, updates: List[Dict]) -> bool:
@@ -117,14 +147,21 @@ class BaseRepository(Generic[ModelType]):
     def partial_update(self, db: Session, id: Any, obj_in: dict) -> Optional[ModelType]:
         return self.update(db, id, obj_in)
 
-    def delete(self, db: Session, id: Any) -> bool:
-        obj = self.get(db, id)
+    async def delete(self, db: AsyncSession, id: Any, user_id: UUID):
+        obj = await self.get(db, id)
+
         if not obj:
             return False
 
+        if user_id:
+            obj.updated_by = user_id
+
         obj.is_deleted = True
-        db.commit()
-        return True
+
+        await db.commit()
+        await db.refresh(obj)
+
+        return obj
 
     def hard_delete(self, db: Session, id: Any) -> bool:
         obj = db.query(self.model).filter(self.model.id == id).first()

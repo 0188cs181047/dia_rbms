@@ -7,19 +7,12 @@ from app.api.app_router import app_route
 from app.core.middleware.exception_handler import ExceptionMiddleware
 
 from app.integrations.caching.cache_manager import init_cache, get_cache
-from.utils.logger import logger
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Starting app... initializing cache")
-
     await init_cache()
 
-    logger.info("Cache initialized")
-
     yield
-
-    logger.info("Shutting down cache")
 
     cache = get_cache()
     await cache.disconnect()

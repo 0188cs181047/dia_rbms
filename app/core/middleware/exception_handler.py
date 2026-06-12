@@ -1,6 +1,8 @@
 from fastapi import Request, HTTPException, status
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from app.utils.logger import logger
+
 
 from sqlalchemy.exc import SQLAlchemyError
 
@@ -27,6 +29,10 @@ class ExceptionMiddleware:
 
     # HTTP EXCEPTION (404, 401, 403 etc)    
     async def http_exception(self, request: Request, exc: HTTPException):
+        logger.warning(
+            f"HTTPException: {exc.detail}",
+            extra={"status_code": exc.status_code, "url": str(request.url)}
+        )
         return JSONResponse(
             status_code=exc.status_code,
             content=error_response(
@@ -38,6 +44,13 @@ class ExceptionMiddleware:
 
     # VALIDATION ERROR (Pydantic)
     async def validation_exception(self, request: Request, exc: RequestValidationError):
+        logger.warning(
+            "Validation Error",
+            extra={
+                "errors": exc.errors(),
+                "url": str(request.url)
+            }
+        )
         return JSONResponse(
             status_code=422,
             content=error_response(
@@ -49,6 +62,15 @@ class ExceptionMiddleware:
 
     # CUSTOM APP EXCEPTION    
     async def app_exception(self, request: Request, exc: AppException):
+        logger.error(
+            f"AppException: {exc.message}",
+            extra={
+                "error_code": exc.error_code,
+                "details": exc.details,
+                "url": str(request.url)
+            }
+        )
+
         return JSONResponse(
             status_code=exc.status_code,
             content=error_response(
@@ -60,6 +82,11 @@ class ExceptionMiddleware:
 
     # DATABASE ERROR    
     async def db_exception(self, request: Request, exc: SQLAlchemyError):
+        logger.error(
+            f"Database Error: {str(exc)}",
+            extra={"url": str(request.url)}
+        )
+
         return JSONResponse(
             status_code=500,
             content=error_response(
@@ -71,6 +98,10 @@ class ExceptionMiddleware:
 
     # FALLBACK (CATCH ALL)    
     async def unhandled_exception(self, request: Request, exc: Exception):
+        logger.critical(
+            f"Unhandled Exception: {str(exc)}",
+            extra={"url": str(request.url)}
+        )
         return JSONResponse(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             content=error_response(

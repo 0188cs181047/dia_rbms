@@ -17,7 +17,7 @@ class BaseModel(Base):
 
     created_by: Mapped[UUID | None] = mapped_column(
         UUID(as_uuid=True),
-        nullable=True,
+        nullable=False,
     )
 
     updated_by: Mapped[UUID | None] = mapped_column(

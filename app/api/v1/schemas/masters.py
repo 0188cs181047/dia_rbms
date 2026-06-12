@@ -10,7 +10,6 @@ class CountryCreate(BaseModel):
 
 class CountryUpdate(BaseModel):
     country_name: Optional[str] = Field(None, max_length=100)
-    country_code: Optional[str] = Field(None, max_length=10)
 
 
 class CountryResponse(BaseModel):
@@ -25,8 +24,9 @@ class CountryResponse(BaseModel):
     updated_at: datetime
     is_deleted: bool
 
-    class Config:
-        from_attributes = True
+    model_config = {
+        "from_attributes": True
+    }
 
 class CountryFilter(BaseModel):
     country_name: Optional[str] = None
