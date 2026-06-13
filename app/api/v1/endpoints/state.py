@@ -6,52 +6,117 @@ from app.db.dependencies import get_db
 from app.depedencies.state import get_state_service
 from app.api.v1.schemas.masters import StateCreate, StateUpdate, StateResponse
 from app.services.state import StateService
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.utils.logger import logger
+from app.api.v1.schemas.response import SuccessResponse
+from app.utils.message import Message
+
+msg = Message("State")
 
 router = APIRouter(prefix="/states", tags=["States"])
 
-@router.post("/", response_model=StateResponse)
-def create_state(
+@router.post("/", response_model=SuccessResponse)
+async def create_state(
     payload: StateCreate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     service:StateService = Depends(get_state_service)
 ):
-    return service.create_state(db, payload.dict())
+    result = await service.create_state(
+        db,
+        payload.model_dump(),
+        created_by="3fa85f64-5717-4562-b3fc-2c963f66afa6"
+    )
 
-@router.get("/", response_model=List[StateResponse])
-def get_states(skip: int = 0, limit: int = 10,
-    db: Session = Depends(get_db),
+    logger.info(msg.created(), extra={"state": result.id})
+
+    return SuccessResponse(
+        message=msg.created(),
+        data=StateResponse.model_validate(result)
+    )
+
+@router.get("/", response_model=SuccessResponse)
+async def get_states(
+    search: str | None = None,
+    sort_by: str | None = None,
+    sort_order: str = "asc",
+    db: AsyncSession = Depends(get_db),
     service:StateService = Depends(get_state_service)
 ):
-    return service.get_all_states(db, skip, limit)
+    result = await service.get_all_states(
+        db,
+        search,
+        sort_by,
+        sort_order
+    )
+    logger.info(msg.fetched(), extra={"count": len(result)})
 
-@router.get("/country/{country_id}", response_model=StateResponse)
-def get_states_by_country(country_id: UUID,
-    db: Session = Depends(get_db),
+    return SuccessResponse(
+        message=msg.fetched(),
+        data=[StateResponse.model_validate(res) for res in result]
+    )
+
+@router.get("/country/{country_id}")
+async def get_states_by_country(
+    country_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    service: StateService = Depends(get_state_service)
+):
+    res = await service.get_states_by_country(db, country_id)
+    logger.info(msg.fetched(), extra={"country_id": str(country_id)})
+
+    return SuccessResponse(
+        message=msg.fetched(),
+        data=[StateResponse.model_validate(state) for state in res]
+    )
+
+
+@router.get("/{state_id}", response_model=SuccessResponse)
+async def get_state(state_id: UUID,
+    db: AsyncSession = Depends(get_db),
     service:StateService = Depends(get_state_service)
 ):
-    return service.get_states_by_country(db, country_id)
+    res = await service.get_state(db, state_id)
 
-@router.get("/{state_id}", response_model=StateResponse)
-def get_state(state_id: UUID,
-    db: Session = Depends(get_db),
-    service:StateService = Depends(get_state_service)
-):
-    return service.get_state(db, state_id)
+    logger.info(msg.fetched(), extra={"state_id": str(state_id)})
+
+    return SuccessResponse(
+        message=msg.fetched(),
+        data=StateResponse.model_validate(res)
+    )
 
 
-@router.put("/{state_id}", response_model=StateResponse)
-def update_state(
+@router.put("/{state_id}", response_model=SuccessResponse)
+async def update_state(
     state_id: UUID,
     payload: StateUpdate,
-    db: Session = Depends(get_db),
+    db: AsyncSession = Depends(get_db),
     service:StateService = Depends(get_state_service)
 ):
-    return service.update_state(db, state_id, payload.dict(exclude_unset=True))
+    result = await service.update_state(
+        db,
+        state_id,
+        payload.model_dump(exclude_unset=True),
+        updated_by="3fa85f64-5717-4562-b3fc-2c963f66afa6"
+    )
+
+    logger.info(msg.updated(), extra={"state_id": str(state_id)})
+
+    return SuccessResponse(
+        message=msg.updated(),
+        data=StateResponse.model_validate(result)
+    )
 
 
-@router.delete("/{state_id}", response_model=StateResponse)
-def delete_state(state_id: UUID,
-    db: Session = Depends(get_db),
+@router.delete("/{state_id}", response_model=SuccessResponse)
+async def delete_state(state_id: UUID,
+    db: AsyncSession = Depends(get_db),
     service:StateService = Depends(get_state_service)
 ):
-    return service.delete_state(db, state_id)
+    result = await service.delete_state(db, state_id, deleted_by="3fa85f64-5717-4562-b3fc-2c963f66afa6")
+
+    logger.warning(msg.deleted(), extra={"state_id": str(state_id)})
+
+    return SuccessResponse(
+        message=msg.deleted(),
+        data=StateResponse.model_validate(result)
+    )

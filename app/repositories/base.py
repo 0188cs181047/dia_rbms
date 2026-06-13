@@ -63,8 +63,6 @@ class BaseRepository(Generic[ModelType]):
         filters: dict | None = None,
         search: str | None = None,
         search_fields: list[str] | None = None,
-        skip: int = 0,
-        limit: int = 10,
         order_by=None
     ):
         stmt = select(self.model).where(self.model.is_deleted == False)
@@ -86,8 +84,6 @@ class BaseRepository(Generic[ModelType]):
 
         if order_by is not None:
             stmt = stmt.order_by(order_by)
-
-        stmt = stmt.offset(skip).limit(limit)
 
         result = await db.execute(stmt)
 

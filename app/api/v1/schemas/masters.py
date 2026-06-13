@@ -53,8 +53,9 @@ class CityResponse(BaseModel):
     updated_at: datetime
     is_deleted: bool
 
-    class Config:
-        from_attributes = True
+    model_config = {
+        "from_attributes": True
+    }
 
 class StateCreate(BaseModel):
     state_name: str = Field(..., max_length=100)
@@ -63,8 +64,6 @@ class StateCreate(BaseModel):
 
 class StateUpdate(BaseModel):
     state_name: Optional[str] = Field(None, max_length=100)
-    state_code: Optional[str] = Field(None, max_length=10)
-    country_id: Optional[UUID] = None
 
 class StateResponse(BaseModel):
     id: UUID
@@ -79,9 +78,10 @@ class StateResponse(BaseModel):
     updated_at: datetime
     is_deleted: bool
 
-    class Config:
-        from_attributes = True
-        
+    model_config = {
+        "from_attributes": True
+    }
+
 class StateFilter(BaseModel):
     state_name: Optional[str] = None
     state_code: Optional[str] = None

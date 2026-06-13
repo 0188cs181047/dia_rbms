@@ -1,22 +1,20 @@
 from app.repositories.base import BaseRepository
 from app.models.masters.state import State
+from sqlalchemy import select
+from uuid import UUID
+from sqlalchemy.ext.asyncio import AsyncSession
 
 
 class StateRepository(BaseRepository[State]):
     def __init__(self):
         super().__init__(State)
 
-    def get_by_country(self, db, country_id: str):
-        return db.query(self.model).filter(
+    async def get_by_country(self, db: AsyncSession, country_id: UUID):
+        stmt = select(self.model).where(
             self.model.country_id == country_id,
             self.model.is_deleted == False
-        ).all()
+        )
 
-    def get_by_code(self, db, code: str):
-        return db.query(self.model).filter(
-            self.model.state_code == code,
-            self.model.is_deleted == False
-        ).first()
+        result = await db.execute(stmt)
 
-    def search_state(self, db, name: str):
-        return self.search(db, "state_name", name)
+        return result.scalars().all()

@@ -1,56 +1,137 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
-from typing import List
 from uuid import UUID
+
+from fastapi import APIRouter, Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.dependencies import get_db
 from app.depedencies.city import get_city_service
-from app.api.v1.schemas.masters import CityCreate, CityResponse, CityUpdate
+from app.api.v1.schemas.masters import (
+    CityCreate,
+    CityResponse,
+    CityUpdate
+)
+from app.api.v1.schemas.response import SuccessResponse
 from app.services.city import CityService
+from app.utils.logger import logger
+from app.utils.message import Message
+
+msg = Message("City")
 
 router = APIRouter(prefix="/cities", tags=["Cities"])
 
-@router.post("/", response_model=CityResponse)
-def create_city(
+
+@router.post("/", response_model=SuccessResponse)
+async def create_city(
     payload: CityCreate,
-    db: Session = Depends(get_db),
-    service:CityService = Depends(get_city_service)
+    db: AsyncSession = Depends(get_db),
+    service: CityService = Depends(get_city_service)
 ):
-    return service.create_city(db, payload.dict())
+    result = await service.create_city(
+        db,
+        payload.model_dump(),
+        created_by="3fa85f64-5717-4562-b3fc-2c963f66afa6"
+    )
 
-@router.get("/",  response_model=List[CityResponse])
-def get_cities(skip: int = 0, limit: int = 10,
-    db: Session = Depends(get_db),
-    service:CityService = Depends(get_city_service)
+    logger.info(msg.created(), extra={"city_id": str(result.id)})
+
+    return SuccessResponse(
+        message=msg.created(),
+        data=CityResponse.model_validate(result)
+    )
+
+
+@router.get("/", response_model=SuccessResponse)
+async def get_cities(
+    search: str | None = None,
+    sort_by: str | None = None,
+    sort_order: str = "asc",
+    db: AsyncSession = Depends(get_db),
+    service: CityService = Depends(get_city_service)
 ):
-    return service.get_all_cities(db, skip, limit)
+    result = await service.get_all_cities(
+        db,
+        search,
+        sort_by,
+        sort_order
+    )
 
-@router.get("/state/{state_id}",  response_model=CityResponse)
-def get_cities_by_state(state_id: UUID,
-    db: Session = Depends(get_db),
-    service:CityService = Depends(get_city_service)
+    logger.info(msg.fetched(), extra={"count": len(result)})
+
+    return SuccessResponse(
+        message=msg.fetched(),
+        data=[CityResponse.model_validate(city) for city in result]
+    )
+
+
+@router.get("/state/{state_id}", response_model=SuccessResponse)
+async def get_cities_by_state(
+    state_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    service: CityService = Depends(get_city_service)
 ):
-    return service.get_cities_by_state(db, state_id)
+    result = await service.get_cities_by_state(db, state_id)
 
-@router.get("/{city_id}", response_model=CityResponse)
-def get_city(city_id: UUID,
-    db: Session = Depends(get_db),
-    service:CityService = Depends(get_city_service)
+    logger.info(msg.fetched(), extra={"state_id": str(state_id)})
+
+    return SuccessResponse(
+        message=msg.fetched(),
+        data=[CityResponse.model_validate(city) for city in result]
+    )
+
+
+@router.get("/{city_id}", response_model=SuccessResponse)
+async def get_city(
+    city_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    service: CityService = Depends(get_city_service)
 ):
-    return service.get_city(db, city_id)
+    result = await service.get_city(db, city_id)
+
+    logger.info(msg.fetched(), extra={"city_id": str(city_id)})
+
+    return SuccessResponse(
+        message=msg.fetched(),
+        data=CityResponse.model_validate(result)
+    )
 
 
-@router.put("/{city_id}", response_model=CityResponse)
-def update_city(city_id: UUID,
+@router.put("/{city_id}", response_model=SuccessResponse)
+async def update_city(
+    city_id: UUID,
     payload: CityUpdate,
-    db: Session = Depends(get_db),
-    service:CityService = Depends(get_city_service)
+    db: AsyncSession = Depends(get_db),
+    service: CityService = Depends(get_city_service)
 ):
-    return service.update_city(db, city_id, payload)
+    result = await service.update_city(
+        db,
+        city_id,
+        payload.model_dump(exclude_unset=True),
+        updated_by="3fa85f64-5717-4562-b3fc-2c963f66afa6"
+    )
 
-@router.delete("/{city_id}", response_model=CityResponse)
-def delete_city(city_id: UUID,
-    db: Session = Depends(get_db),
-    service:CityService = Depends(get_city_service)
+    logger.info(msg.updated(), extra={"city_id": str(city_id)})
+
+    return SuccessResponse(
+        message=msg.updated(),
+        data=CityResponse.model_validate(result)
+    )
+
+
+@router.delete("/{city_id}", response_model=SuccessResponse)
+async def delete_city(
+    city_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    service: CityService = Depends(get_city_service)
 ):
-    return service.delete_city(db, city_id)
+    result = await service.delete_city(
+        db,
+        city_id,
+        deleted_by="3fa85f64-5717-4562-b3fc-2c963f66afa6"
+    )
+
+    logger.warning(msg.deleted(), extra={"city_id": str(city_id)})
+
+    return SuccessResponse(
+        message=msg.deleted(),
+        data=CityResponse.model_validate(result)
+    )

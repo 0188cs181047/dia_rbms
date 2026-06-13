@@ -17,16 +17,12 @@ class CountryService:
     async def get_all_countries(
         self,
         db,
-        skip=0,
-        limit=10,
         search=None,
         sort_by=None,
         sort_order="asc"
     ):
         return await self.repo.get_multi(
             db=db,
-            skip=skip,
-            limit=limit,
             search=search,
             search_fields=["country_name", "country_code"],
             order_by=(asc(sort_by) if sort_order == "asc" and sort_by else

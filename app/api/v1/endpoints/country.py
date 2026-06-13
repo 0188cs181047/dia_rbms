@@ -1,7 +1,4 @@
-from typing import List
-
 from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
 from uuid import UUID
 
 from app.db.dependencies import get_db
@@ -38,8 +35,6 @@ async def create_country(
 
 @router.get("/", response_model=SuccessResponse)
 async def get_countries(
-    skip: int = 0,
-    limit: int = 10,
     search: str | None = None,
     sort_by: str | None = None,
     sort_order: str = "asc",
@@ -48,8 +43,6 @@ async def get_countries(
 ):
     result = await service.get_all_countries(
         db,
-        skip,
-        limit,
         search,
         sort_by,
         sort_order
