@@ -1,12 +1,14 @@
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from app.core.config import settings
 
+
 class DatabaseManager:
     def __init__(self):
         self.engine = create_async_engine(
             settings.DATABASE_URL,
             echo=False,
             pool_pre_ping=True,
+            future=True,
         )
 
         self.session_factory = async_sessionmaker(
@@ -17,5 +19,6 @@ class DatabaseManager:
 
     async def disconnect(self):
         await self.engine.dispose()
+
 
 db_manager = DatabaseManager()
