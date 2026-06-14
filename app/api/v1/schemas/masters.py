@@ -1,7 +1,7 @@
 from pydantic import BaseModel, Field
 from typing import Optional
 from uuid import UUID
-from datetime import datetime
+from app.api.v1.schemas.base import BaseClass
 
 class CountryCreate(BaseModel):
     country_name: str = Field(..., max_length=100)
@@ -12,17 +12,9 @@ class CountryUpdate(BaseModel):
     country_name: Optional[str] = Field(None, max_length=100)
 
 
-class CountryResponse(BaseModel):
-    id: UUID
+class CountryResponse(BaseClass):
     country_name: str
     country_code: str
-
-    created_by: Optional[UUID]
-    updated_by: Optional[UUID]
-
-    created_at: datetime
-    updated_at: datetime
-    is_deleted: bool
 
     model_config = {
         "from_attributes": True
@@ -41,17 +33,9 @@ class CityUpdate(BaseModel):
     city_name: Optional[str] = Field(None, max_length=100)
     state_id: Optional[UUID] = None
 
-class CityResponse(BaseModel):
-    id: UUID
+class CityResponse(BaseClass):
     city_name: str
     state_id: UUID
-
-    created_by: Optional[UUID]
-    updated_by: Optional[UUID]
-
-    created_at: datetime
-    updated_at: datetime
-    is_deleted: bool
 
     model_config = {
         "from_attributes": True
@@ -65,18 +49,10 @@ class StateCreate(BaseModel):
 class StateUpdate(BaseModel):
     state_name: Optional[str] = Field(None, max_length=100)
 
-class StateResponse(BaseModel):
-    id: UUID
+class StateResponse(BaseClass):
     state_name: str
     state_code: Optional[str]
     country_id: UUID
-
-    created_by: Optional[UUID]
-    updated_by: Optional[UUID]
-
-    created_at: datetime
-    updated_at: datetime
-    is_deleted: bool
 
     model_config = {
         "from_attributes": True
